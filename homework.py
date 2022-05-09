@@ -39,10 +39,10 @@ def send_message(bot, message):
     """Отправляет сообщение в телеграм."""
     try:
         bot = Bot(token=TELEGRAM_TOKEN)
+        bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.info('сообщение отправлено')
     except Exception as error:
         logging.error(f'сбой отправки сообщения {error}')
-    return bot.send_message(TELEGRAM_CHAT_ID, message)
 
 
 def get_api_answer(current_timestamp):
@@ -78,14 +78,14 @@ def parse_status(homework):
     """Извлекает из информации о конкретной работе статус ее проверки."""
     homework_name = homework['homework_name']
     homework_status = homework['status']
-    if 'homework_name' not in homework:
+    if homework_name is None:
         logging.error('Неверный статус проверки домашней работы')
         raise KeyError('Не найден ключ homeworks')
-    if 'status' not in homework:
+    if homework_status is None:
         logging.error('Неверный статус проверки домашней работы')
         raise KeyError('Не найден ключ homeworks')
     verdict = HOMEWORK_STATUSES[homework_status]
-    if homework_status not in HOMEWORK_STATUSES:
+    if verdict is None:
         logging.error('Неверный статус проверки домашней работы')
         raise KeyError('Не найден ключ homeworks')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -103,7 +103,7 @@ def main():
     """Основная логика работы бота."""
     current_timestamp = int(time.time())
     bot = Bot(token=TELEGRAM_TOKEN)
-    if check_tokens() is False:
+    if not check_tokens():
         raise ValueError('Не найден токен для запуска')
     while True:
         try:
@@ -115,13 +115,12 @@ def main():
                 message = parse_status(homeworks[0])
                 send_message(bot, message)
             current_timestamp = response.get('current_date', current_timestamp)
-            time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             current_timestamp = int(time.time())
-            time.sleep(RETRY_TIME)
-        else:
             logging.error(message)
+        finally:
+            time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
